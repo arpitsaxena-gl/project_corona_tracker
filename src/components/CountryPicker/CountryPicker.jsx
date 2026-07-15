@@ -7,10 +7,19 @@ import styles from './CountryPicker.module.css';
 
 const Countries = ({ handleCountryChange }) => {
   const [countries, setCountries] = useState([]);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     const fetchAPI = async () => {
-      setCountries(await fetchCountries());
+      const result = await fetchCountries();
+
+      if (result) {
+        setCountries(result);
+        setLoadError(null);
+      } else {
+        setCountries([]);
+        setLoadError('Unable to load country list.');
+      }
     };
 
     fetchAPI();
@@ -18,9 +27,15 @@ const Countries = ({ handleCountryChange }) => {
 
   return (
     <FormControl className={styles.formControl}>
+      {loadError && <p role="alert">{loadError}</p>}
       <NativeSelect defaultValue="" onChange={(e) => handleCountryChange(e.target.value)}>
-        <option value="">United States</option>
-        {countries.map((country, i) => <option key={i} value={country}>{country}</option>)}
+        <option value="">Global</option>
+        <option value="US">United States</option>
+        {countries.map((country) => (
+          <option key={country.iso2} value={country.iso2}>
+            {country.name}
+          </option>
+        ))}
       </NativeSelect>
     </FormControl>
   );
