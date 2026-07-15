@@ -1,50 +1,63 @@
 import axios from 'axios';
 
-const url = 'https://covid19.mathdro.id/api';
+const url = 'https://disease.sh/v3/covid-19';
+
+const mapStats = ({ cases, recovered, deaths, updated }) => ({
+  confirmed: { value: cases ?? 0 },
+  recovered: { value: recovered ?? 0 },
+  deaths: { value: deaths ?? 0 },
+  lastUpdate: updated ? new Date(updated).toISOString() : null,
+});
 
 export const fetchData = async (country) => {
-  let changeableUrl = url;
-
-  if (country) {
-    changeableUrl = `${url}/countries/${country}`;
-  }
+  const endpoint = country
+    ? `${url}/countries/${encodeURIComponent(country)}`
+    : `${url}/all`;
 
   try {
-    const { data: { confirmed, recovered, deaths, lastUpdate } } = await axios.get(changeableUrl);
-
-    return { confirmed, recovered, deaths, lastUpdate };
+    const { data } = await axios.get(endpoint);
+    return mapStats(data);
   } catch (error) {
-    return error;
+    console.error('fetchData failed:', error);
+    return null;
   }
 };
 
-// export const fetchDailyData = async () => {
-//   try {
-//     const { data } = await axios.get(`${url}/daily`);
+export const fetchDailyData = async (country = 'US') => {
+  const code = country || 'US';
 
-//     return data.map(({ confirmed, deaths, reportDate: date }) => ({ confirmed: confirmed.total, deaths: deaths.total, date }));
-//   } catch (error) {
-//     return error;
-//   }
-// };
+  try {
+    const { data } = await axios.get(`${url}/historical/${encodeURIComponent(code)}?lastdays=30`);
+    const timeline = data?.timeline;
 
-// Instead of Global, it fetches the daily data for the US
-export const fetchDailyData = async () => {
-    try {
-      const { data } = await axios.get('https://api.covidtracking.com/v1/us/daily.json');
-  
-      return data.map(({ positive, recovered, death, dateChecked: date }) => ({ confirmed: positive, recovered, deaths: death, date }));
-    } catch (error) {
-      return error;
+    if (!timeline?.cases) {
+      return null;
     }
-  };
+
+    return Object.keys(timeline.cases).map((date) => ({
+      date,
+      confirmed: timeline.cases[date],
+      deaths: timeline.deaths[date],
+      recovered: timeline.recovered[date],
+    }));
+  } catch (error) {
+    console.error('fetchDailyData failed:', error);
+    return null;
+  }
+};
 
 export const fetchCountries = async () => {
   try {
-    const { data: { countries } } = await axios.get(`${url}/countries`);
+    const { data } = await axios.get(`${url}/countries`);
 
-    return countries.map((country) => country.name);
+    return data
+      .map(({ country, countryInfo }) => ({
+        name: country,
+        iso2: countryInfo?.iso2 || '',
+      }))
+      .filter((entry) => entry.iso2);
   } catch (error) {
-    return error;
+    console.error('fetchCountries failed:', error);
+    return null;
   }
 };
