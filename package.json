@@ -7,9 +7,10 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
-    "axios": "^0.19.2",
+    "axios": "^1.7.9",
     "chart.js": "^2.9.3",
     "classnames": "^2.2.6",
+    "prop-types": "^15.8.1",
     "react": "^16.13.1",
     "react-chartjs-2": "^2.9.0",
     "react-countup": "^4.3.3",
@@ -20,6 +21,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "lint": "eslint src --ext .js,.jsx",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
