@@ -1,50 +1,99 @@
 import axios from 'axios';
+import { mapCountries, mapSummaryMetrics, mapTimeline } from './mappers';
 
-const url = 'https://covid19.mathdro.id/api';
+const DEFAULT_BASE = 'https://disease.sh';
 
-export const fetchData = async (country) => {
-  let changeableUrl = url;
+export function getApiBase() {
+  const fromEnv = typeof process !== 'undefined'
+    && process.env
+    && process.env.REACT_APP_COVID_API_BASE;
+  const base = (fromEnv || DEFAULT_BASE).replace(/\/$/, '');
+  return base || DEFAULT_BASE;
+}
 
-  if (country) {
-    changeableUrl = `${url}/countries/${country}`;
+export class ApiError extends Error {
+  constructor(message, { code = 'API_ERROR', cause = null } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.cause = cause;
   }
+}
+
+function isAbortError(error) {
+  return (
+    error
+    && (error.name === 'AbortError'
+      || error.code === 'ERR_CANCELED'
+      || error.__CANCEL__ === true)
+  );
+}
+
+function throwHttpError(error, op) {
+  if (isAbortError(error)) {
+    throw error;
+  }
+  const status = error && error.response && error.response.status;
+  const message = (error && error.message) || `Failed to ${op}`;
+  throw new ApiError(message, {
+    code: status ? `HTTP_${status}` : 'NETWORK_ERROR',
+    cause: error,
+  });
+}
+
+/**
+ * Global or country summary → UI DTO.
+ * @param {string} [country]
+ * @param {AbortSignal} [signal]
+ */
+export const fetchSummary = async (country, signal) => {
+  const base = getApiBase();
+  const path = country
+    ? `${base}/v3/covid-19/countries/${encodeURIComponent(country)}`
+    : `${base}/v3/covid-19/all`;
 
   try {
-    const { data: { confirmed, recovered, deaths, lastUpdate } } = await axios.get(changeableUrl);
-
-    return { confirmed, recovered, deaths, lastUpdate };
+    const { data } = await axios.get(path, { signal });
+    return mapSummaryMetrics(data);
   } catch (error) {
-    return error;
+    throwHttpError(error, 'fetch summary');
   }
 };
 
-// export const fetchDailyData = async () => {
-//   try {
-//     const { data } = await axios.get(`${url}/daily`);
-
-//     return data.map(({ confirmed, deaths, reportDate: date }) => ({ confirmed: confirmed.total, deaths: deaths.total, date }));
-//   } catch (error) {
-//     return error;
-//   }
-// };
-
-// Instead of Global, it fetches the daily data for the US
-export const fetchDailyData = async () => {
-    try {
-      const { data } = await axios.get('https://api.covidtracking.com/v1/us/daily.json');
-  
-      return data.map(({ positive, recovered, death, dateChecked: date }) => ({ confirmed: positive, recovered, deaths: death, date }));
-    } catch (error) {
-      return error;
-    }
-  };
-
-export const fetchCountries = async () => {
+/**
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<string[]>}
+ */
+export const fetchCountries = async (signal) => {
+  const base = getApiBase();
   try {
-    const { data: { countries } } = await axios.get(`${url}/countries`);
-
-    return countries.map((country) => country.name);
+    const { data } = await axios.get(`${base}/v3/covid-19/countries`, { signal });
+    return mapCountries(data);
   } catch (error) {
-    return error;
+    throwHttpError(error, 'fetch countries');
   }
 };
+
+/**
+ * Global historical timeline.
+ * @param {AbortSignal} [signal]
+ * @param {number} [lastdays=120]
+ */
+export const fetchTimeline = async (signal, lastdays = 120) => {
+  const base = getApiBase();
+  const days = Number.isFinite(Number(lastdays)) ? Number(lastdays) : 120;
+  try {
+    const { data } = await axios.get(
+      `${base}/v3/covid-19/historical/all`,
+      { params: { lastdays: days }, signal },
+    );
+    return mapTimeline(data);
+  } catch (error) {
+    throwHttpError(error, 'fetch timeline');
+  }
+};
+
+/** @deprecated Use fetchSummary */
+export const fetchData = fetchSummary;
+/** @deprecated Use fetchTimeline */
+export const fetchDailyData = fetchTimeline;

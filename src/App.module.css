@@ -13,6 +13,17 @@ body {
   margin-top: 50px;
 }
 
+.errorBanner {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  max-width: 480px;
+  width: 90%;
+  text-align: center;
+  background: #fff5f5;
+  border: 1px solid #f5c2c2;
+  border-radius: 4px;
+}
+
 @media only screen and (max-width: 770px) {
   .container {
     margin: 0 10%;
