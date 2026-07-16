@@ -4,20 +4,34 @@
 
 ![COVID-19 Tracker](https://i.ibb.co/X87BqVY/Screenshot-2020-04-13-at-10-14-58.png)
 
-### [🌟 Become a top 1% Next.js 13 developer in only one course](https://jsmastery.pro/next13)
-### [🚀 Land your dream programming job in 6 months](https://jsmastery.pro/masterclass)
-
-## Stay up to date with new projects
-New major projects coming soon, subscribe to the mailing list to stay up to date https://resource.jsmasterypro.com/newsletter
-
 ## Introduction
-This is a code repository for the corresponding video tutorial. 
 
-In this video, we will create a full COVID-19 Tracker. We're going to use React, Charts.JS and Material UI.
+React COVID-19 dashboard using Charts.js and Material UI.
 
-By the end of this video, you will have a strong understanding of React's workflow and the use of hooks.
+Primary statistics provider: [disease.sh](https://disease.sh/) (`/v3/covid-19`). The global line chart still uses the COVID Tracking Project **US historical daily** archive and is labeled as such in the UI.
 
-API used: https://covid19.mathdro.id/api
+## Setup
 
-Setup:
-- run ```npm i && npm start```
+```bash
+npm i && npm start
+```
+
+### Environment (optional)
+
+Copy `.env.example` to `.env`:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `REACT_APP_COVID_API_BASE` | `https://disease.sh/v3/covid-19` | Primary COVID stats + countries API base |
+| `REACT_APP_US_DAILY_URL` | `https://api.covidtracking.com/v1/us/daily.json` | US historical daily JSON for the line chart |
+
+## Tests
+
+```bash
+CI=true npm test -- --watchAll=false
+```
+
+## Troubleshooting
+
+- If cards fail to load, confirm `REACT_APP_COVID_API_BASE/all` returns HTTP 200 in the browser.
+- Failed loads show an on-screen error banner with Retry; metrics state never stores a raw `Error` object.

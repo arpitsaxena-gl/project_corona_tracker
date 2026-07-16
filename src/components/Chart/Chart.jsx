@@ -5,14 +5,17 @@ import { fetchDailyData } from '../../api';
 
 import styles from './Chart.module.css';
 
-const Chart = ({ data: { confirmed, recovered, deaths }, country }) => {
-  const [dailyData, setDailyData] = useState({});
+const Chart = ({ data: { confirmed, recovered, deaths } = {}, country }) => {
+  const [dailyData, setDailyData] = useState([]);
 
   useEffect(() => {
     const fetchMyAPI = async () => {
-      const initialDailyData = await fetchDailyData();
-
-      setDailyData(initialDailyData);
+      const result = await fetchDailyData();
+      if (result.ok && Array.isArray(result.data)) {
+        setDailyData(result.data);
+      } else {
+        setDailyData([]);
+      }
     };
 
     fetchMyAPI();
@@ -39,32 +42,38 @@ const Chart = ({ data: { confirmed, recovered, deaths }, country }) => {
     ) : null
   );
 
+  const hasDailySeries = Array.isArray(dailyData) && dailyData.length > 0 && dailyData[0];
+
   const lineChart = (
-    dailyData[0] ? (
-      <Line
-        data={{
-          labels: dailyData.map(({ date }) => new Date(date).toLocaleDateString()),
-          datasets: [{
-            data: dailyData.map((data) => data.confirmed),
-            label: 'Infected',
-            borderColor: '#3333ff',
-            fill: true,
-          }, {
-            data: dailyData.map((data) => data.deaths),
-            label: 'Deaths',
-            borderColor: 'red',
-            backgroundColor: 'rgba(255, 0, 0, 0.5)',
-            fill: true,
-          },  {
-            data: dailyData.map((data) => data.recovered),
-            label: 'Recovered',
-            borderColor: 'green',
-            backgroundColor: 'rgba(0, 255, 0, 0.5)',
-            fill: true,
-          },
-          ],
-        }}
-      />
+    hasDailySeries ? (
+      <>
+        <p className={styles.subtitle}>
+          US historical daily (archive) — line series uses COVID Tracking Project US daily data.
+        </p>
+        <Line
+          data={{
+            labels: dailyData.map(({ date }) => new Date(date).toLocaleDateString()),
+            datasets: [{
+              data: dailyData.map((point) => (point.confirmed == null ? 0 : point.confirmed)),
+              label: 'Infected',
+              borderColor: '#3333ff',
+              fill: true,
+            }, {
+              data: dailyData.map((point) => (point.deaths == null ? 0 : point.deaths)),
+              label: 'Deaths',
+              borderColor: 'red',
+              backgroundColor: 'rgba(255, 0, 0, 0.5)',
+              fill: true,
+            }, {
+              data: dailyData.map((point) => (point.recovered == null ? 0 : point.recovered)),
+              label: 'Recovered',
+              borderColor: 'green',
+              backgroundColor: 'rgba(0, 255, 0, 0.5)',
+              fill: true,
+            }],
+          }}
+        />
+      </>
     ) : null
   );
 
