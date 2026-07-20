@@ -1,0 +1,479 @@
+---
+agent: code-analyser-agent
+cli: Cursor Agent CLI
+llm: auto
+run_id: 20260720T182332_fr2tvm
+generated_at: 2026-07-20T12:53:32.382Z
+---
+
+{
+  "detected_stack": {
+    "languages": [
+      {
+        "name": "JavaScript",
+        "confidence": "high",
+        "evidence": ".js/.jsx sources; ES2018 parserOptions"
+      },
+      {
+        "name": "JSX",
+        "confidence": "high",
+        "evidence": "React components in .jsx/.js"
+      },
+      {
+        "name": "CSS Modules",
+        "confidence": "high",
+        "evidence": "*.module.css imports"
+      }
+    ],
+    "backend": [],
+    "frontend": [
+      {
+        "name": "React",
+        "version": "^16.13.1",
+        "confidence": "high"
+      },
+      {
+        "name": "Create React App / react-scripts",
+        "version": "3.4.1",
+        "confidence": "high"
+      },
+      {
+        "name": "Material-UI",
+        "version": "^4.9.7",
+        "confidence": "high"
+      },
+      {
+        "name": "Chart.js",
+        "version": "^2.9.3",
+        "confidence": "high"
+      },
+      {
+        "name": "react-chartjs-2",
+        "version": "^2.9.0",
+        "confidence": "high"
+      },
+      {
+        "name": "axios",
+        "version": "^0.19.2",
+        "confidence": "high"
+      },
+      {
+        "name": "react-countup",
+        "version": "^4.3.3",
+        "confidence": "high"
+      }
+    ],
+    "data": [
+      {
+        "name": "External REST JSON APIs",
+        "stores": [
+          "https://covid19.mathdro.id/api",
+          "https://api.covidtracking.com/v1/us/daily.json"
+        ],
+        "orm": "none",
+        "confidence": "high"
+      }
+    ],
+    "build_deploy": [
+      {
+        "name": "npm / package-lock.json",
+        "confidence": "high"
+      },
+      {
+        "name": "CRA build scripts",
+        "confidence": "high"
+      }
+    ],
+    "testing": [
+      {
+        "name": "Jest via react-scripts",
+        "confidence": "medium",
+        "notes": "Declared; no test files found in analyzed tree"
+      },
+      {
+        "name": "@testing-library/react",
+        "version": "^9.5.0",
+        "confidence": "high",
+        "notes": "Dependency present but unused in source"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Client-only SPA COVID tracker (JS Mastery tutorial lineage). Analyzed via GitHub MCP from master@c6b004c2a7. Blueprint listed 9 JS modules; package.json and CSS modules also reviewed."
+  },
+  "architecture": {
+    "style": "SPA container/presentational (client monolith)",
+    "layers": [
+      "bootstrap (index.js)",
+      "application state (App class)",
+      "presentation (Cards, Chart, CountryPicker)",
+      "integration (src/api/index.js)"
+    ],
+    "components": [
+      {
+        "name": "App",
+        "file": "src/App.js",
+        "role": "state container"
+      },
+      {
+        "name": "Cards/Info",
+        "file": "src/components/Cards/Cards.jsx",
+        "role": "summary metrics UI"
+      },
+      {
+        "name": "CardComponent",
+        "file": "src/components/Cards/Card/Card.jsx",
+        "role": "metric card"
+      },
+      {
+        "name": "Chart",
+        "file": "src/components/Chart/Chart.jsx",
+        "role": "line/bar charts + daily fetch"
+      },
+      {
+        "name": "Countries/CountryPicker",
+        "file": "src/components/CountryPicker/CountryPicker.jsx",
+        "role": "country select"
+      },
+      {
+        "name": "api",
+        "file": "src/api/index.js",
+        "role": "HTTP client adapters"
+      }
+    ],
+    "dependencies": [
+      "App -> fetchData, Cards, CountryPicker, Chart",
+      "Chart -> fetchDailyData",
+      "CountryPicker -> fetchCountries",
+      "api -> axios -> external COVID APIs"
+    ],
+    "risks": [
+      "Upstream APIs discontinued — app likely non-functional",
+      "Error objects stored as data and passed to UI",
+      "Chart/CountryPicker fetch independently of App error handling",
+      "Hard-coded integration URLs with high coupling"
+    ]
+  },
+  "field_summary": {
+    "total_fields": 28,
+    "mandatory_fields": 10,
+    "optional_fields": 6,
+    "default_fields": 3
+  },
+  "field_validations": {
+    "general": [
+      {
+        "field": "confirmed",
+        "file": "src/components/Cards/Cards.jsx",
+        "line_hint": 7,
+        "validation_type": "presence",
+        "category": "Presence / required",
+        "description": "Gates card render with Loading... when confirmed falsy",
+        "severity": "medium"
+      },
+      {
+        "field": "confirmed",
+        "file": "src/components/Chart/Chart.jsx",
+        "line_hint": 21,
+        "validation_type": "presence",
+        "category": "Presence / required",
+        "description": "Bar chart rendered only when confirmed truthy",
+        "severity": "low"
+      },
+      {
+        "field": "dailyData",
+        "file": "src/components/Chart/Chart.jsx",
+        "line_hint": 42,
+        "validation_type": "presence",
+        "category": "Presence / required",
+        "description": "Line chart requires dailyData[0]; does not verify Array.isArray",
+        "severity": "high"
+      },
+      {
+        "field": "country",
+        "file": "src/api/index.js",
+        "line_hint": 7,
+        "validation_type": "conditional",
+        "category": "Conditional",
+        "description": "Truthy country switches URL to /countries/{country} without encodeURIComponent",
+        "severity": "low"
+      }
+    ],
+    "mandatory": [
+      {
+        "field": "handleCountryChange",
+        "file": "src/components/CountryPicker/CountryPicker.jsx",
+        "description": "Callback prop required for select onChange; no PropTypes enforcement",
+        "severity": "medium"
+      },
+      {
+        "field": "cardTitle,value,lastUpdate,cardSubtitle",
+        "file": "src/components/Cards/Card/Card.jsx",
+        "description": "Display props used without null checks; PropTypes disabled",
+        "severity": "medium"
+      }
+    ],
+    "default": [
+      {
+        "field": "App.state.data",
+        "file": "src/App.js",
+        "line_hint": 11,
+        "description": "Defaults to empty object {}",
+        "severity": "info"
+      },
+      {
+        "field": "App.state.country",
+        "file": "src/App.js",
+        "line_hint": 12,
+        "description": "Defaults to empty string (global fetch)",
+        "severity": "info"
+      },
+      {
+        "field": "NativeSelect.defaultValue",
+        "file": "src/components/CountryPicker/CountryPicker.jsx",
+        "line_hint": 22,
+        "description": "defaultValue empty string; label incorrectly says United States",
+        "severity": "medium"
+      }
+    ]
+  },
+  "validation_classifications": {
+    "input": [
+      {
+        "field": "country",
+        "description": "Optional string from picker; truthiness only; no allow-list beyond API options",
+        "file": "src/api/index.js",
+        "severity": "low"
+      },
+      {
+        "field": "e.target.value",
+        "description": "NativeSelect change event string passed to handleCountryChange",
+        "file": "src/components/CountryPicker/CountryPicker.jsx",
+        "severity": "info"
+      }
+    ],
+    "business": [
+      {
+        "field": "confirmed",
+        "description": "Loading gate conflates loading, error, and empty payload",
+        "file": "src/components/Cards/Cards.jsx",
+        "severity": "high"
+      },
+      {
+        "field": "country",
+        "description": "Truthy country selects bar chart vs line chart mode",
+        "file": "src/components/Chart/Chart.jsx",
+        "severity": "info"
+      }
+    ],
+    "database": [],
+    "conditional": [
+      {
+        "field": "barChart datasets",
+        "description": "Required when country is set and confirmed present",
+        "file": "src/components/Chart/Chart.jsx",
+        "severity": "info"
+      },
+      {
+        "field": "lineChart datasets",
+        "description": "Required when country empty and dailyData[0] present",
+        "file": "src/components/Chart/Chart.jsx",
+        "severity": "info"
+      },
+      {
+        "field": "Cards metrics",
+        "description": "Rendered only when confirmed truthy",
+        "file": "src/components/Cards/Cards.jsx",
+        "severity": "info"
+      }
+    ]
+  },
+  "performance_findings": [
+    {
+      "description": "No request cancellation on unmount for axios calls in App, Chart, CountryPicker",
+      "severity": "medium",
+      "effort": "low",
+      "file": "src/api/index.js"
+    },
+    {
+      "description": "No caching of countries or daily series; refetch on every remount",
+      "severity": "low",
+      "effort": "medium",
+      "file": "src/components/Chart/Chart.jsx"
+    },
+    {
+      "description": "Returning Error from fetch functions forces consumers into unsafe map/destructure paths",
+      "severity": "high",
+      "effort": "low",
+      "file": "src/api/index.js",
+      "line_hint": 16
+    }
+  ],
+  "security_findings": [
+    {
+      "description": "axios ^0.19.2 is outdated with known advisories; upgrade required",
+      "severity": "high",
+      "category": "Vulnerable Components",
+      "effort": "medium",
+      "file": "package.json"
+    },
+    {
+      "description": "react-scripts 3.4.1 / React 16.13 toolchain is EOL with likely transitive CVEs",
+      "severity": "high",
+      "category": "Vulnerable Components",
+      "effort": "high",
+      "file": "package.json"
+    },
+    {
+      "description": "Material-UI v4 is end-of-life",
+      "severity": "medium",
+      "category": "Vulnerable Components",
+      "effort": "high",
+      "file": "package.json"
+    },
+    {
+      "description": "Country path segment interpolated without encodeURIComponent",
+      "severity": "low",
+      "category": "Injection",
+      "effort": "low",
+      "file": "src/api/index.js",
+      "line_hint": 8
+    },
+    {
+      "description": "No hard-coded secrets observed; public read-only APIs only",
+      "severity": "info",
+      "category": "Secrets",
+      "effort": "low"
+    }
+  ],
+  "integration_points": [
+    {
+      "name": "covid19.mathdro.id",
+      "type": "HTTP GET",
+      "url": "https://covid19.mathdro.id/api",
+      "used_by": [
+        "fetchData",
+        "fetchCountries"
+      ],
+      "risk": "critical",
+      "notes": "Historically discontinued third-party COVID API"
+    },
+    {
+      "name": "covidtracking.com US daily",
+      "type": "HTTP GET",
+      "url": "https://api.covidtracking.com/v1/us/daily.json",
+      "used_by": [
+        "fetchDailyData"
+      ],
+      "risk": "critical",
+      "notes": "COVID Tracking Project ended; line chart is US-only despite global UX"
+    }
+  ],
+  "issues": [
+    {
+      "description": "Primary data providers appear retired — application likely cannot load live data",
+      "severity": "critical",
+      "effort": "medium",
+      "file": "src/api/index.js",
+      "category": "integration"
+    },
+    {
+      "description": "API catch blocks return error objects instead of null/Result; UI assumes payload shape",
+      "severity": "high",
+      "effort": "low",
+      "file": "src/api/index.js",
+      "line_hint": 16
+    },
+    {
+      "description": "CountryPicker countries.map will throw if fetchCountries returns Error",
+      "severity": "high",
+      "effort": "low",
+      "file": "src/components/CountryPicker/CountryPicker.jsx",
+      "line_hint": 24
+    },
+    {
+      "description": "Chart destructures data.confirmed etc.; fails if App stores Error as data",
+      "severity": "high",
+      "effort": "low",
+      "file": "src/components/Chart/Chart.jsx",
+      "line_hint": 8
+    },
+    {
+      "description": "Default option labeled United States but value='' fetches global summary",
+      "severity": "medium",
+      "effort": "low",
+      "file": "src/components/CountryPicker/CountryPicker.jsx",
+      "line_hint": 23
+    },
+    {
+      "description": "Cards always display title Global even when a country is selected",
+      "severity": "medium",
+      "effort": "low",
+      "file": "src/components/Cards/Cards.jsx",
+      "line_hint": 13
+    },
+    {
+      "description": "No automated tests despite Testing Library dependencies",
+      "severity": "medium",
+      "effort": "medium",
+      "file": "package.json"
+    },
+    {
+      "description": "react/prop-types rule disabled — no contract enforcement",
+      "severity": "low",
+      "effort": "low",
+      "file": ".eslintrc.js"
+    }
+  ],
+  "recommendations": [
+    {
+      "description": "Replace mathdro/covidtracking with a maintained COVID/open-data API behind an adapter interface; externalize base URLs via REACT_APP_* env",
+      "severity": "critical",
+      "effort": "medium",
+      "priority": "P0"
+    },
+    {
+      "description": "Change API functions to return null or { data, error }; add Array.isArray and optional chaining guards in Cards, Chart, CountryPicker",
+      "severity": "high",
+      "effort": "low",
+      "priority": "P0"
+    },
+    {
+      "description": "Add explicit loading/error/empty UI state in App and propagate to children",
+      "severity": "medium",
+      "effort": "low",
+      "priority": "P1"
+    },
+    {
+      "description": "Fix Global vs United States labeling; pass country into Cards title; align daily chart geography with product intent",
+      "severity": "medium",
+      "effort": "low",
+      "priority": "P1"
+    },
+    {
+      "description": "Upgrade axios, React 18+, build toolchain (Vite or modern CRA successor), MUI, Chart.js",
+      "severity": "high",
+      "effort": "high",
+      "priority": "P1"
+    },
+    {
+      "description": "Add unit tests for API mappers and component loading/error paths; consider TypeScript",
+      "severity": "medium",
+      "effort": "medium",
+      "priority": "P2"
+    },
+    {
+      "description": "Use AbortController for axios; encodeURIComponent on country path; restore key a11y lint rules",
+      "severity": "low",
+      "effort": "low",
+      "priority": "P3"
+    }
+  ],
+  "pipeline": {
+    "run_id": "20260720T182332_fr2tvm",
+    "agent": "code-analyser-agent",
+    "repo": "arpitsaxena-gl/project_corona_tracker",
+    "base_branch": "master",
+    "feature_branch": "feature/code-analysis-20260720-fr2tvm",
+    "pr_note": "PR not created by this agent; pr-creator-agent owns pull request creation"
+  }
+}
