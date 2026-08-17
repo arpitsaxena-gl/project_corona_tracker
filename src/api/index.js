@@ -1,50 +1,53 @@
 import axios from 'axios';
 
-const url = 'https://covid19.mathdro.id/api';
+const covidApiUrl = process.env.REACT_APP_COVID_API_URL ?? 'https://covid19.mathdro.id';
+const dailyApiUrl = process.env.REACT_APP_DAILY_API_URL ?? 'https://disease.sh';
 
-export const fetchData = async (country) => {
-  let changeableUrl = url;
-
-  if (country) {
-    changeableUrl = `${url}/countries/${country}`;
-  }
-
+export const fetchData = async (country, signal) => {
+  const url = country
+    ? `${covidApiUrl}/api/countries/${encodeURIComponent(country)}`
+    : `${covidApiUrl}/api`;
   try {
-    const { data: { confirmed, recovered, deaths, lastUpdate } } = await axios.get(changeableUrl);
-
-    return { confirmed, recovered, deaths, lastUpdate };
+    const { data } = await axios.get(url, { signal });
+    return {
+      confirmed: { value: data.confirmed.value },
+      recovered: { value: data.recovered.value },
+      deaths: { value: data.deaths.value },
+      lastUpdate: data.lastUpdate,
+    };
   } catch (error) {
-    return error;
+    if (axios.isCancel(error)) throw error;
+    throw new Error(`Failed to fetch COVID stats: ${error.message}`);
   }
 };
 
-// export const fetchDailyData = async () => {
-//   try {
-//     const { data } = await axios.get(`${url}/daily`);
-
-//     return data.map(({ confirmed, deaths, reportDate: date }) => ({ confirmed: confirmed.total, deaths: deaths.total, date }));
-//   } catch (error) {
-//     return error;
-//   }
-// };
-
-// Instead of Global, it fetches the daily data for the US
-export const fetchDailyData = async () => {
-    try {
-      const { data } = await axios.get('https://api.covidtracking.com/v1/us/daily.json');
-  
-      return data.map(({ positive, recovered, death, dateChecked: date }) => ({ confirmed: positive, recovered, deaths: death, date }));
-    } catch (error) {
-      return error;
-    }
-  };
-
-export const fetchCountries = async () => {
+export const fetchDailyData = async (country, signal) => {
+  const url = country
+    ? `${dailyApiUrl}/v3/covid-19/historical/${encodeURIComponent(country)}?lastdays=all`
+    : `${dailyApiUrl}/v3/covid-19/historical/all?lastdays=all`;
   try {
-    const { data: { countries } } = await axios.get(`${url}/countries`);
-
-    return countries.map((country) => country.name);
+    const { data } = await axios.get(url, { signal });
+    const timeline = country ? data.timeline : data;
+    const { cases, deaths, recovered } = timeline;
+    return Object.keys(cases).map((date) => ({
+      date,
+      confirmed: cases[date] ?? 0,
+      deaths: deaths[date] ?? 0,
+      recovered: recovered[date] ?? 0,
+    }));
   } catch (error) {
-    return error;
+    if (axios.isCancel(error)) throw error;
+    throw new Error(`Failed to fetch daily data: ${error.message}`);
+  }
+};
+
+export const fetchCountries = async (signal) => {
+  const url = `${covidApiUrl}/api/countries`;
+  try {
+    const { data } = await axios.get(url, { signal });
+    return data.countries.map(({ name }) => name).sort();
+  } catch (error) {
+    if (axios.isCancel(error)) throw error;
+    throw new Error(`Failed to fetch countries: ${error.message}`);
   }
 };
