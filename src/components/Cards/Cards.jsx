@@ -1,41 +1,56 @@
 import React from 'react';
-import { Typography, Grid } from '@material-ui/core';
-import CardComponent from './Card/Card';
+import { Grid, CircularProgress, Typography } from '@material-ui/core';
+import Card from './Card/Card';
 import styles from './Cards.module.css';
 
-const Info = ({ data: { confirmed, recovered, deaths, lastUpdate } }) => {
-  if (!confirmed) {
-    return 'Loading...';
+const Cards = ({ data, loading, error }) => {
+  if (loading) {
+    return (
+      <Grid container justify="center" className={styles.container}>
+        <CircularProgress />
+      </Grid>
+    );
   }
 
-  return (
-    <div className={styles.container}>
-        <Typography gutterBottom variant="h4" component="h2">Global</Typography>
-      <Grid container spacing={3} justify="center">
-        <CardComponent
-          className={styles.infected}
-          cardTitle="Infected"
-          value={confirmed.value}
-          lastUpdate={lastUpdate}
-          cardSubtitle="Number of active cases from COVID-19."
-        />
-        <CardComponent
-          className={styles.recovered}
-          cardTitle="Recovered"
-          value={recovered.value}
-          lastUpdate={lastUpdate}
-          cardSubtitle="Number of recoveries from COVID-19."
-        />
-        <CardComponent
-          className={styles.deaths}
-          cardTitle="Deaths"
-          value={deaths.value}
-          lastUpdate={lastUpdate}
-          cardSubtitle="Number of deaths caused by COVID-19."
-        />
+  if (error) {
+    return (
+      <Grid container justify="center" className={styles.container}>
+        <Typography color="error">{error}</Typography>
       </Grid>
-    </div>
+    );
+  }
+
+  if (!data || !data.confirmed) {
+    return null;
+  }
+
+  const { confirmed, recovered, deaths, lastUpdate } = data;
+
+  return (
+    <Grid container spacing={3} justify="center">
+      <Card
+        className={styles.infected}
+        cardTitle="Infected"
+        value={confirmed.value}
+        lastUpdate={lastUpdate}
+        cardSubtitle="Number of active cases of COVID-19"
+      />
+      <Card
+        className={styles.recovered}
+        cardTitle="Recovered"
+        value={recovered.value}
+        lastUpdate={lastUpdate}
+        cardSubtitle="Number of recoveries from COVID-19"
+      />
+      <Card
+        className={styles.deaths}
+        cardTitle="Deaths"
+        value={deaths.value}
+        lastUpdate={lastUpdate}
+        cardSubtitle="Number of deaths caused by COVID-19"
+      />
+    </Grid>
   );
 };
 
-export default Info;
+export default Cards;
