@@ -1,76 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { Line, Bar } from 'react-chartjs-2';
-
+import { Line } from 'react-chartjs-2';
+import axios from 'axios';
+import { CircularProgress, Typography } from '@material-ui/core';
 import { fetchDailyData } from '../../api';
-
 import styles from './Chart.module.css';
 
-const Chart = ({ data: { confirmed, recovered, deaths }, country }) => {
-  const [dailyData, setDailyData] = useState({});
+const Chart = ({ country }) => {
+  const [dailyData, setDailyData] = useState([]);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyError, setDailyError] = useState(null);
 
   useEffect(() => {
-    const fetchMyAPI = async () => {
-      const initialDailyData = await fetchDailyData();
+    const controller = new AbortController();
+    setDailyLoading(true);
+    setDailyError(null);
 
-      setDailyData(initialDailyData);
-    };
+    fetchDailyData(country, controller.signal)
+      .then((records) => {
+        setDailyData(records);
+        setDailyLoading(false);
+      })
+      .catch((err) => {
+        if (!axios.isCancel(err)) {
+          setDailyError(err.message);
+          setDailyLoading(false);
+        }
+      });
 
-    fetchMyAPI();
-  }, []);
+    return () => controller.abort();
+  }, [country]);
 
-  const barChart = (
-    confirmed ? (
-      <Bar
-        data={{
-          labels: ['Infected', 'Recovered', 'Deaths'],
-          datasets: [
-            {
-              label: 'People',
-              backgroundColor: ['rgba(0, 0, 255, 0.5)', 'rgba(0, 255, 0, 0.5)', 'rgba(255, 0, 0, 0.5)'],
-              data: [confirmed.value, recovered.value, deaths.value],
-            },
-          ],
-        }}
-        options={{
-          legend: { display: false },
-          title: { display: true, text: `Current state in ${country}` },
-        }}
-      />
-    ) : null
-  );
+  if (dailyLoading) {
+    return (
+      <div className={styles.container}>
+        <CircularProgress />
+      </div>
+    );
+  }
 
-  const lineChart = (
-    dailyData[0] ? (
-      <Line
-        data={{
-          labels: dailyData.map(({ date }) => new Date(date).toLocaleDateString()),
-          datasets: [{
-            data: dailyData.map((data) => data.confirmed),
-            label: 'Infected',
-            borderColor: '#3333ff',
-            fill: true,
-          }, {
-            data: dailyData.map((data) => data.deaths),
-            label: 'Deaths',
-            borderColor: 'red',
-            backgroundColor: 'rgba(255, 0, 0, 0.5)',
-            fill: true,
-          },  {
-            data: dailyData.map((data) => data.recovered),
-            label: 'Recovered',
-            borderColor: 'green',
-            backgroundColor: 'rgba(0, 255, 0, 0.5)',
-            fill: true,
-          },
-          ],
-        }}
-      />
-    ) : null
-  );
+  if (dailyError) {
+    return (
+      <div className={styles.container}>
+        <Typography color="error">{dailyError}</Typography>
+      </div>
+    );
+  }
+
+  if (!dailyData.length) {
+    return null;
+  }
 
   return (
     <div className={styles.container}>
-      {country ? barChart : lineChart}
+      <Line
+        data={{
+          labels: dailyData.map(({ date }) => date),
+          datasets: [
+            {
+              data: dailyData.map(({ confirmed }) => confirmed),
+              label: 'Infected',
+              borderColor: '#3333ff',
+              fill: true,
+            },
+            {
+              data: dailyData.map(({ deaths }) => deaths),
+              label: 'Deaths',
+              borderColor: 'red',
+              backgroundColor: 'rgba(255, 0, 0, 0.5)',
+              fill: true,
+            },
+            {
+              data: dailyData.map(({ recovered }) => recovered),
+              label: 'Recovered',
+              borderColor: 'green',
+              backgroundColor: 'rgba(0, 255, 0, 0.5)',
+              fill: true,
+            },
+          ],
+        }}
+      />
     </div>
   );
 };
