@@ -1,50 +1,50 @@
 import axios from 'axios';
 
-const url = 'https://covid19.mathdro.id/api';
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://disease.sh/v3/covid-19';
 
 export const fetchData = async (country) => {
-  let changeableUrl = url;
-
-  if (country) {
-    changeableUrl = `${url}/countries/${country}`;
-  }
+  const url = country
+    ? `${BASE_URL}/countries/${encodeURIComponent(country)}`
+    : `${BASE_URL}/all`;
 
   try {
-    const { data: { confirmed, recovered, deaths, lastUpdate } } = await axios.get(changeableUrl);
-
-    return { confirmed, recovered, deaths, lastUpdate };
+    const { data } = await axios.get(url);
+    return {
+      confirmed: { value: data.cases },
+      recovered: { value: data.recovered },
+      deaths: { value: data.deaths },
+      lastUpdate: new Date(data.updated).toISOString(),
+    };
   } catch (error) {
-    return error;
+    console.error('[api] fetchData failed:', error.message);
+    return null;
   }
 };
 
-// export const fetchDailyData = async () => {
-//   try {
-//     const { data } = await axios.get(`${url}/daily`);
-
-//     return data.map(({ confirmed, deaths, reportDate: date }) => ({ confirmed: confirmed.total, deaths: deaths.total, date }));
-//   } catch (error) {
-//     return error;
-//   }
-// };
-
-// Instead of Global, it fetches the daily data for the US
 export const fetchDailyData = async () => {
-    try {
-      const { data } = await axios.get('https://api.covidtracking.com/v1/us/daily.json');
-  
-      return data.map(({ positive, recovered, death, dateChecked: date }) => ({ confirmed: positive, recovered, deaths: death, date }));
-    } catch (error) {
-      return error;
-    }
-  };
+  try {
+    const { data } = await axios.get(`${BASE_URL}/historical/all?lastdays=all`);
+    const dates = Object.keys(data.cases);
+    return dates.map((date) => ({
+      confirmed: data.cases[date],
+      recovered: data.recovered[date],
+      deaths: data.deaths[date],
+      date,
+    }));
+  } catch (error) {
+    console.error('[api] fetchDailyData failed:', error.message);
+    return null;
+  }
+};
 
 export const fetchCountries = async () => {
   try {
-    const { data: { countries } } = await axios.get(`${url}/countries`);
-
-    return countries.map((country) => country.name);
+    const { data } = await axios.get(`${BASE_URL}/countries`);
+    return data
+      .map((c) => c.country)
+      .sort((a, b) => a.localeCompare(b));
   } catch (error) {
-    return error;
+    console.error('[api] fetchCountries failed:', error.message);
+    return null;
   }
 };
