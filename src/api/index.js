@@ -1,50 +1,55 @@
 import axios from 'axios';
 
-const url = 'https://covid19.mathdro.id/api';
+import { API_BASE_URL, DAILY_URL } from '../config';
+import { ok, fail, toAppError } from './errors';
 
-export const fetchData = async (country) => {
-  let changeableUrl = url;
-
-  if (country) {
-    changeableUrl = `${url}/countries/${country}`;
-  }
-
+/**
+ * Raw HTTP layer. Knows URLs and transport only — never the upstream JSON shape
+ * (that lives in api/adapter.js). Every function returns a `Result<rawJson>`:
+ * it never returns a raw Error as data (closes analysis P1/S3).
+ *
+ * @param {string} [country] optional country name; when present, per-country endpoint
+ * @param {AbortSignal} [signal] optional AbortController signal for cancellation
+ */
+export const fetchData = async (country, signal) => {
   try {
-    const { data: { confirmed, recovered, deaths, lastUpdate } } = await axios.get(changeableUrl);
-
-    return { confirmed, recovered, deaths, lastUpdate };
+    // Build the URL inside the try so a synchronous throw from encodeURIComponent
+    // (e.g. an unpaired UTF-16 surrogate in `country`) is captured as a Result
+    // rather than escaping as an unhandled rejection — honouring this module's
+    // promise to never return/throw a raw error (P1/S3).
+    const changeableUrl = country
+      ? `${API_BASE_URL}/countries/${encodeURIComponent(country)}` // encode user-influenced value (S2)
+      : API_BASE_URL;
+    const { data } = await axios.get(changeableUrl, { signal });
+    return ok(data);
   } catch (error) {
-    return error;
+    return fail(toAppError(error));
   }
 };
 
-// export const fetchDailyData = async () => {
-//   try {
-//     const { data } = await axios.get(`${url}/daily`);
-
-//     return data.map(({ confirmed, deaths, reportDate: date }) => ({ confirmed: confirmed.total, deaths: deaths.total, date }));
-//   } catch (error) {
-//     return error;
-//   }
-// };
-
-// Instead of Global, it fetches the daily data for the US
-export const fetchDailyData = async () => {
-    try {
-      const { data } = await axios.get('https://api.covidtracking.com/v1/us/daily.json');
-  
-      return data.map(({ positive, recovered, death, dateChecked: date }) => ({ confirmed: positive, recovered, deaths: death, date }));
-    } catch (error) {
-      return error;
-    }
-  };
-
-export const fetchCountries = async () => {
+export const fetchCountries = async (signal) => {
   try {
-    const { data: { countries } } = await axios.get(`${url}/countries`);
-
-    return countries.map((country) => country.name);
+    const { data } = await axios.get(`${API_BASE_URL}/countries`, { signal });
+    return ok(data);
   } catch (error) {
-    return error;
+    return fail(toAppError(error));
+  }
+};
+
+/**
+ * Daily time-series. Reads the configured live source (REACT_APP_DAILY_URL).
+ * When no source is configured, returns an empty payload so the line chart
+ * renders a graceful empty state instead of the old perpetual blank (P3).
+ */
+export const fetchDailyData = async (signal) => {
+  if (!DAILY_URL) {
+    return ok([]);
+  }
+
+  try {
+    const { data } = await axios.get(DAILY_URL, { signal });
+    return ok(data);
+  } catch (error) {
+    return fail(toAppError(error));
   }
 };
