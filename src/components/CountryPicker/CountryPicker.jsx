@@ -1,29 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { NativeSelect, FormControl } from '@material-ui/core';
+import React, { useEffect } from 'react';
+import PropTypes from 'prop-types';
+import { NativeSelect, FormControl, Typography } from '@material-ui/core';
 
-import { fetchCountries } from '../../api';
-
+import useAsync from '../../hooks/useAsync';
+import { getCountries } from '../../services/covidService';
 import styles from './CountryPicker.module.css';
 
+/**
+ * Country selector. Fetches the list via the service + useAsync (aborts on
+ * unmount). On error or an empty list the select is disabled with a visible
+ * message, so the dropdown is never silently broken (closes P5, adds affordance).
+ */
 const Countries = ({ handleCountryChange }) => {
-  const [countries, setCountries] = useState([]);
+  const { status, data: countries, run } = useAsync();
 
   useEffect(() => {
-    const fetchAPI = async () => {
-      setCountries(await fetchCountries());
-    };
+    run((signal) => getCountries(signal));
+  }, [run]);
 
-    fetchAPI();
-  }, []);
+  const list = Array.isArray(countries) ? countries : [];
+  const disabled = status !== 'success' || list.length === 0;
 
   return (
     <FormControl className={styles.formControl}>
-      <NativeSelect defaultValue="" onChange={(e) => handleCountryChange(e.target.value)}>
+      {status === 'error' && (
+        <Typography variant="caption" color="error">
+          Unable to load countries.
+        </Typography>
+      )}
+      <NativeSelect
+        defaultValue=""
+        disabled={disabled}
+        onChange={(e) => handleCountryChange(e.target.value)}
+      >
         <option value="">United States</option>
-        {countries.map((country, i) => <option key={i} value={country}>{country}</option>)}
+        {list.map((country) => (
+          <option key={country.name} value={country.name}>
+            {country.name}
+          </option>
+        ))}
       </NativeSelect>
+      {status === 'success' && list.length === 0 && (
+        <Typography variant="caption">No countries available.</Typography>
+      )}
     </FormControl>
   );
+};
+
+Countries.propTypes = {
+  handleCountryChange: PropTypes.func.isRequired,
 };
 
 export default Countries;
