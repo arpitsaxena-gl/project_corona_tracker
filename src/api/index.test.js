@@ -6,8 +6,9 @@ import axios from 'axios';
 import { fetchData, fetchCountries, fetchDailyData } from './index';
 import { ErrorCode } from './errors';
 
-// babel-plugin-jest-hoist lifts these above the imports.
-jest.mock('axios', () => ({ get: jest.fn() }));
+// babel-plugin-jest-hoist lifts these above the imports. isCancel is stubbed
+// because errors.js now delegates axios-cancel detection to axios.isCancel().
+jest.mock('axios', () => ({ get: jest.fn(), isCancel: jest.fn(() => false) }));
 jest.mock('../config', () => ({ API_BASE_URL: 'https://api.example', DAILY_URL: '' }));
 
 afterEach(() => jest.resetAllMocks());
@@ -36,6 +37,15 @@ describe('fetchData', () => {
     const res = await fetchData('India');
     expect(res.ok).toBe(false);
     expect(res.error.code).toBe(ErrorCode.HTTP);
+  });
+
+  it('captures a synchronous throw from URL construction as a Result, not an unhandled rejection', async () => {
+    // An unpaired high surrogate makes encodeURIComponent throw a URIError; the
+    // URL is now built inside try/catch so this returns fail() instead of escaping.
+    const res = await fetchData('\uD800');
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe(ErrorCode.UNKNOWN);
+    expect(axios.get).not.toHaveBeenCalled();
   });
 });
 
@@ -69,7 +79,7 @@ describe('fetchDailyData', () => {
       API_BASE_URL: 'https://api.example',
       DAILY_URL: 'https://daily.example/data.json',
     }));
-    jest.doMock('axios', () => ({ get: jest.fn() }));
+    jest.doMock('axios', () => ({ get: jest.fn(), isCancel: jest.fn(() => false) }));
 
     // eslint-disable-next-line global-require
     const axiosLive = require('axios');

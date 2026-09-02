@@ -12,11 +12,14 @@ import { ok, fail, toAppError } from './errors';
  * @param {AbortSignal} [signal] optional AbortController signal for cancellation
  */
 export const fetchData = async (country, signal) => {
-  const changeableUrl = country
-    ? `${API_BASE_URL}/countries/${encodeURIComponent(country)}` // encode user-influenced value (S2)
-    : API_BASE_URL;
-
   try {
+    // Build the URL inside the try so a synchronous throw from encodeURIComponent
+    // (e.g. an unpaired UTF-16 surrogate in `country`) is captured as a Result
+    // rather than escaping as an unhandled rejection — honouring this module's
+    // promise to never return/throw a raw error (P1/S3).
+    const changeableUrl = country
+      ? `${API_BASE_URL}/countries/${encodeURIComponent(country)}` // encode user-influenced value (S2)
+      : API_BASE_URL;
     const { data } = await axios.get(changeableUrl, { signal });
     return ok(data);
   } catch (error) {

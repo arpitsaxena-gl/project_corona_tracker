@@ -1,14 +1,14 @@
+import { toNumber } from '../utils/toNumber';
+
 /**
  * Anti-corruption layer: the ONLY module aware of upstream API field names.
  * Normalizes raw JSON into internal DTOs with null-safe reads and numeric
  * defaults, so the UI never touches the external shape and never throws a
  * TypeError on a missing/renamed field (closes analysis P2).
+ *
+ * Numeric coercion is delegated to the shared `toNumber` helper so the UI and
+ * the adapter share one definition of a "safe number".
  */
-
-const toNumber = (value) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
 
 const toEpochMs = (value) => {
   if (value == null) return null;
@@ -40,21 +40,27 @@ export const toCountries = (raw) => {
 };
 
 /**
- * @returns {{date:string, confirmed:number, deaths:number}[]}
+ * @returns {{date:(string|number), confirmed:number, deaths:number, recovered:number}[]}
  * Accepts either a bare array or `{ data: [...] }`. Maps upstream field aliases
- * (positive→confirmed, death→deaths, dateChecked→date). Rows without a date are
- * dropped; an empty/removed source yields `[]`.
+ * (positive→confirmed, death→deaths, dateChecked→date) and preserves the
+ * `recovered` trend so the line chart keeps its third dataset. Rows without a
+ * date are dropped; an empty/removed source yields `[]`.
  */
 export const toDaily = (raw) => {
   const list = Array.isArray(raw) ? raw : raw && Array.isArray(raw.data) ? raw.data : [];
   return list
     .map((row) => {
       if (!row) return null;
-      const date = row.date != null ? row.date : row.dateChecked;
-      if (date == null) return null;
+      const rawDate = row.date != null ? row.date : row.dateChecked;
+      if (rawDate == null) return null;
+      // Preserve numeric epoch timestamps as numbers: `new Date(1788353639741)`
+      // parses, but `new Date(String(1788353639741))` is an Invalid Date. Only
+      // non-numeric values (ISO / date-only strings) are stringified.
+      const date = typeof rawDate === 'number' ? rawDate : String(rawDate);
       const confirmed = toNumber(row.positive != null ? row.positive : row.confirmed);
       const deaths = toNumber(row.death != null ? row.death : row.deaths);
-      return { date: String(date), confirmed, deaths };
+      const recovered = toNumber(row.recovered);
+      return { date, confirmed, deaths, recovered };
     })
     .filter(Boolean);
 };

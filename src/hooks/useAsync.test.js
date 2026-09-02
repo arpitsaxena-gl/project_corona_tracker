@@ -1,7 +1,8 @@
 // Tests for the useAsync state machine — Redmine #16.
 // The repo pins @testing-library/react@9 (no renderHook), so the hook is driven
 // through a tiny harness component. Covers the idle→loading→success/error
-// transitions, the silent-ignore of ABORTED results, and retry/reset (P5).
+// transitions, the terminal-but-silent handling of ABORTED results, and
+// retry/reset (P5).
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react';
 
@@ -59,7 +60,7 @@ describe('useAsync', () => {
     expect(utils.getByTestId('error').textContent).toBe('down');
   });
 
-  it('silently ignores an ABORTED Result — it must not surface as a user error (P5)', async () => {
+  it('resolves an ABORTED Result to idle — never a user error, never stuck on loading (P5)', async () => {
     const fetcher = jest
       .fn()
       .mockResolvedValue(fail(new AppError(ErrorCode.ABORTED, 'Request aborted')));
@@ -67,8 +68,8 @@ describe('useAsync', () => {
     await act(async () => {
       fireEvent.click(utils.getByText('run'));
     });
-    // Stays on the prior (loading) state; never flips to error.
-    expect(status(utils)).toBe('loading');
+    // Terminal-but-silent: returns to idle rather than hanging on 'loading'.
+    expect(status(utils)).toBe('idle');
     expect(utils.getByTestId('error').textContent).toBe('');
   });
 

@@ -1,26 +1,28 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Line, Bar } from 'react-chartjs-2';
-import { Typography } from '@material-ui/core';
 
 import useAsync from '../../hooks/useAsync';
 import { getDailyData } from '../../services/covidService';
+import AsyncState from '../AsyncState/AsyncState';
+import { AsyncStatus, ASYNC_STATUS_VALUES } from '../../constants/asyncStatus';
 import styles from './Chart.module.css';
 
 /**
  * Per-country bar chart (from `data`) and global daily line chart (self-fetched
  * via the service + useAsync). The daily fetch aborts on unmount and renders an
- * explicit empty/error state instead of a perpetual blank (closes P3, P5).
- * All numeric reads come from the adapter DTO (no unguarded `.value`, P2).
+ * explicit empty/error state (with Retry) instead of a perpetual blank (closes
+ * P3, P5). All numeric reads come from the adapter DTO (no unguarded `.value`,
+ * P2). The line chart keeps its Infected / Recovered / Deaths datasets.
  */
 const Chart = ({ data, country, status }) => {
-  const { status: dailyStatus, data: dailyData, run } = useAsync();
+  const { status: dailyStatus, data: dailyData, run, retry } = useAsync();
 
   useEffect(() => {
     run((signal) => getDailyData(signal));
   }, [run]);
 
-  const hasTotals = status === 'success' && data;
+  const hasTotals = status === AsyncStatus.SUCCESS && data;
 
   const barChart = hasTotals ? (
     <Bar
@@ -45,37 +47,50 @@ const Chart = ({ data, country, status }) => {
     />
   ) : null;
 
-  let lineChart;
-  if (dailyStatus === 'idle' || dailyStatus === 'loading') {
-    lineChart = <Typography align="center">Loading daily data…</Typography>;
-  } else if (dailyStatus === 'error') {
-    lineChart = <Typography align="center">Daily data is currently unavailable.</Typography>;
-  } else if (Array.isArray(dailyData) && dailyData.length > 0) {
-    lineChart = (
-      <Line
-        data={{
-          labels: dailyData.map(({ date }) => new Date(date).toLocaleDateString()),
-          datasets: [
-            {
-              data: dailyData.map((point) => point.confirmed),
-              label: 'Infected',
-              borderColor: '#3333ff',
-              fill: true,
-            },
-            {
-              data: dailyData.map((point) => point.deaths),
-              label: 'Deaths',
-              borderColor: 'red',
-              backgroundColor: 'rgba(255, 0, 0, 0.5)',
-              fill: true,
-            },
-          ],
-        }}
-      />
-    );
-  } else {
-    lineChart = <Typography align="center">No daily data available.</Typography>;
-  }
+  const hasDailyRows = Array.isArray(dailyData) && dailyData.length > 0;
+
+  const lineChart = (
+    <AsyncState
+      status={dailyStatus}
+      isEmpty={!hasDailyRows}
+      onRetry={retry}
+      loadingText="Loading daily data…"
+      errorText="Daily data is currently unavailable."
+      emptyText="No daily data available."
+      variant="body1"
+      align="center"
+    >
+      {hasDailyRows && (
+        <Line
+          data={{
+            labels: dailyData.map(({ date }) => new Date(date).toLocaleDateString()),
+            datasets: [
+              {
+                data: dailyData.map((point) => point.confirmed),
+                label: 'Infected',
+                borderColor: '#3333ff',
+                fill: true,
+              },
+              {
+                data: dailyData.map((point) => point.recovered),
+                label: 'Recovered',
+                borderColor: 'green',
+                backgroundColor: 'rgba(0, 255, 0, 0.5)',
+                fill: true,
+              },
+              {
+                data: dailyData.map((point) => point.deaths),
+                label: 'Deaths',
+                borderColor: 'red',
+                backgroundColor: 'rgba(255, 0, 0, 0.5)',
+                fill: true,
+              },
+            ],
+          }}
+        />
+      )}
+    </AsyncState>
+  );
 
   return <div className={styles.container}>{country ? barChart : lineChart}</div>;
 };
@@ -87,7 +102,7 @@ Chart.propTypes = {
     deaths: PropTypes.number,
   }),
   country: PropTypes.string,
-  status: PropTypes.oneOf(['idle', 'loading', 'success', 'error']),
+  status: PropTypes.oneOf(ASYNC_STATUS_VALUES),
 };
 
 Chart.defaultProps = {

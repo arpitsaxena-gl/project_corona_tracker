@@ -4,10 +4,11 @@ import { Card, CardContent, Typography, Grid } from '@material-ui/core';
 import CountUp from 'react-countup';
 import cx from 'classnames';
 
+import { toNumber } from '../../../utils/toNumber';
 import styles from './Card.module.css';
 
 const CardComponent = ({ className, cardTitle, value, lastUpdate, cardSubtitle }) => {
-  const safeValue = Number(value) || 0; // never NaN into CountUp
+  const safeValue = toNumber(value); // shared finite-number rule; never NaN/Infinity into CountUp
 
   return (
     <Grid item xs={12} md={3} component={Card} className={cx(styles.card, className)}>

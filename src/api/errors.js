@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 /**
  * Normalized error/result contract for the API boundary.
  *
@@ -37,18 +39,21 @@ export const fail = (error) => ({
 });
 
 /**
+ * A native AbortController abort (fetch / DOM) surfaces as an `AbortError` that
+ * `axios.isCancel` does not own — axios's own cancellations already go through
+ * `isCancel`. Keeping only this native shape avoids reimplementing axios's
+ * internal cancel detection.
+ */
+const isNativeAbort = (error) => !!error && error.name === 'AbortError';
+
+/**
  * Map a thrown transport error (axios / fetch / AbortController) to an AppError
  * with a stable code. Aborts are distinguished so consumers can silently ignore
- * them instead of surfacing a user-facing error.
+ * them instead of surfacing a user-facing error. Axios cancellations are
+ * detected with the canonical `axios.isCancel()` rather than a bespoke check.
  */
 export function toAppError(error) {
-  if (
-    error &&
-    (error.name === 'CanceledError' ||
-      error.name === 'AbortError' ||
-      error.code === 'ERR_CANCELED' ||
-      error.message === 'canceled')
-  ) {
+  if (axios.isCancel(error) || isNativeAbort(error)) {
     return new AppError(ErrorCode.ABORTED, 'Request aborted', error);
   }
   if (error && error.response) {

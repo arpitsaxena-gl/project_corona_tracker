@@ -1,6 +1,6 @@
 import { useReducer, useRef, useCallback, useEffect } from 'react';
 
-import { ErrorCode } from '../api/errors';
+import { asyncReducer, initialAsyncState, resultToAction } from '../state/asyncMachine';
 
 /**
  * Single source of async-state semantics for every fetch site.
@@ -9,28 +9,13 @@ import { ErrorCode } from '../api/errors';
  * after unmount (or after a superseding run) are ignored — no setState on an
  * unmounted component (closes analysis P5). Aborts never surface as user errors.
  *
+ * The status transitions themselves live in ../state/asyncMachine so the class
+ * `App` container reuses the exact same state machine instead of duplicating it.
+ *
  * @returns {{status:'idle'|'loading'|'success'|'error', data:*, error:*, run:Function, retry:Function, reset:Function}}
  */
-
-const initialState = { status: 'idle', data: null, error: null };
-
-function reducer(state, action) {
-  switch (action.type) {
-    case 'loading':
-      return { status: 'loading', data: state.data, error: null };
-    case 'success':
-      return { status: 'success', data: action.data, error: null };
-    case 'error':
-      return { status: 'error', data: null, error: action.error };
-    case 'reset':
-      return initialState;
-    default:
-      return state;
-  }
-}
-
 export default function useAsync() {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(asyncReducer, initialAsyncState);
   const mountedRef = useRef(true);
   const controllerRef = useRef(null);
   const lastFetcherRef = useRef(null);
@@ -64,13 +49,9 @@ export default function useAsync() {
 
     if (!mountedRef.current || controller.signal.aborted) return;
 
-    if (result && result.ok) {
-      dispatch({ type: 'success', data: result.data });
-    } else if (result && result.error && result.error.code === ErrorCode.ABORTED) {
-      // Expected on unmount / superseding run — ignore silently.
-    } else {
-      dispatch({ type: 'error', error: result ? result.error : undefined });
-    }
+    // resultToAction turns a stray ABORTED result into a reset→idle rather than
+    // leaving the reducer stuck on 'loading' with no consumer-visible recovery.
+    dispatch(resultToAction(result));
   }, []);
 
   const retry = useCallback(() => {

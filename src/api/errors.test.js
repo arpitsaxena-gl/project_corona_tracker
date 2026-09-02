@@ -1,6 +1,7 @@
 // Unit tests for the Result/error contract — Redmine #16.
 // Verifies analysis P1/S3: the API boundary never returns a raw Error as data;
 // every failure is a normalized AppError with a stable, classified code.
+import axios from 'axios';
 import { ErrorCode, AppError, ok, fail, toAppError } from './errors';
 
 describe('errors — ok() / fail() Result wrappers', () => {
@@ -25,11 +26,13 @@ describe('errors — ok() / fail() Result wrappers', () => {
 });
 
 describe('errors — toAppError() transport classification', () => {
-  it('classifies aborts/cancellations as ABORTED (so they can be ignored, not shown)', () => {
-    expect(toAppError({ name: 'CanceledError' }).code).toBe(ErrorCode.ABORTED);
+  it('classifies an axios cancellation as ABORTED via the canonical axios.isCancel()', () => {
+    // A real axios CanceledError carries the __CANCEL__ marker isCancel() reads.
+    expect(toAppError(new axios.CanceledError('canceled')).code).toBe(ErrorCode.ABORTED);
+  });
+
+  it('classifies a native AbortController abort (AbortError) as ABORTED', () => {
     expect(toAppError({ name: 'AbortError' }).code).toBe(ErrorCode.ABORTED);
-    expect(toAppError({ code: 'ERR_CANCELED' }).code).toBe(ErrorCode.ABORTED);
-    expect(toAppError({ message: 'canceled' }).code).toBe(ErrorCode.ABORTED);
   });
 
   it('classifies an HTTP response error as HTTP and keeps the status in the message', () => {

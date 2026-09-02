@@ -48,17 +48,31 @@ describe('adapter.toCountries', () => {
 describe('adapter.toDaily', () => {
   it('maps upstream aliases (positive->confirmed, death->deaths, dateChecked->date)', () => {
     const out = toDaily([{ positive: 10, death: 2, dateChecked: '2026-08-01' }]);
-    expect(out).toEqual([{ date: '2026-08-01', confirmed: 10, deaths: 2 }]);
+    expect(out).toEqual([{ date: '2026-08-01', confirmed: 10, deaths: 2, recovered: 0 }]);
   });
 
   it('accepts already-normalized field names', () => {
     const out = toDaily([{ confirmed: 7, deaths: 1, date: '2026-08-02' }]);
-    expect(out).toEqual([{ date: '2026-08-02', confirmed: 7, deaths: 1 }]);
+    expect(out).toEqual([{ date: '2026-08-02', confirmed: 7, deaths: 1, recovered: 0 }]);
+  });
+
+  it('preserves the recovered trend so the line chart keeps its third dataset', () => {
+    const out = toDaily([{ positive: 10, death: 2, recovered: 5, dateChecked: '2026-08-01' }]);
+    expect(out).toEqual([{ date: '2026-08-01', confirmed: 10, deaths: 2, recovered: 5 }]);
+  });
+
+  it('keeps a numeric epoch date as a number so `new Date(date)` stays valid', () => {
+    const epoch = 1788353639741;
+    const out = toDaily([{ date: epoch, positive: 1 }]);
+    expect(out).toEqual([{ date: epoch, confirmed: 1, deaths: 0, recovered: 0 }]);
+    expect(typeof out[0].date).toBe('number');
+    // Guards the regression the review flagged: stringifying the epoch broke parsing.
+    expect(Number.isNaN(new Date(out[0].date).getTime())).toBe(false);
   });
 
   it('accepts { data: [...] } wrappers and drops rows without a date', () => {
     const out = toDaily({ data: [{ positive: 3, dateChecked: '2026-08-03' }, { positive: 9 }] });
-    expect(out).toEqual([{ date: '2026-08-03', confirmed: 3, deaths: 0 }]);
+    expect(out).toEqual([{ date: '2026-08-03', confirmed: 3, deaths: 0, recovered: 0 }]);
   });
 
   it('returns [] for an empty/removed source', () => {

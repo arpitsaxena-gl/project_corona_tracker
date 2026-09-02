@@ -41,7 +41,7 @@ describe('covidService.getDailyData', () => {
   it('returns adapted DailyPoint[] on success', async () => {
     fetchDailyData.mockResolvedValue(ok([{ positive: 3, death: 1, dateChecked: '2026-08-03' }]));
     const res = await getDailyData();
-    expect(res).toEqual(ok([{ date: '2026-08-03', confirmed: 3, deaths: 1 }]));
+    expect(res).toEqual(ok([{ date: '2026-08-03', confirmed: 3, deaths: 1, recovered: 0 }]));
   });
 
   it('propagates failure', async () => {
